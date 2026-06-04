@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Todo · Akıllı Yapılacaklar</title>
+  <title>Todo · Yapılacaklar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
   <main class="card auth-card" id="auth-screen">
     <div class="brand">
       <div class="brand-mark">✦</div>
-      <h1>Akıllı Todo</h1>
+      <h1>Yapılacaklar</h1>
     </div>
     <p class="auth-subtitle" id="auth-subtitle">Devam etmek için giriş yap</p>
 
@@ -49,10 +49,9 @@
     <header class="topbar">
       <div class="brand brand-sm">
         <div class="brand-mark">✦</div>
-        <h1>Akıllı Todo</h1>
+        <h1>Yapılacaklar</h1>
       </div>
       <div class="user-box">
-        <button class="icon-btn" id="settings-btn" title="AI ayarları">⚙️</button>
         <span class="avatar" id="user-avatar"></span>
         <button class="link-btn" id="logout-btn">Çıkış</button>
       </div>
@@ -60,29 +59,9 @@
 
     <!-- Görev ekleme -->
     <form id="todo-form" class="todo-form">
-      <input type="text" id="todo-input" placeholder="Yeni görev ya da bir hedef yaz…" autocomplete="off">
-      <button type="button" class="btn btn-ai" id="ai-toggle" title="AI Asistan">
-        <span class="spark">✨</span> AI
-      </button>
+      <input type="text" id="todo-input" placeholder="Yeni görev yaz…" autocomplete="off">
       <button type="submit" class="btn btn-primary">Ekle</button>
     </form>
-
-    <!-- AI Asistan paneli -->
-    <section class="ai-panel" id="ai-panel" hidden>
-      <div class="ai-head">
-        <span class="ai-title"><span class="spark">✨</span> AI Asistan</span>
-        <button class="icon-btn" id="ai-close" title="Kapat">✕</button>
-      </div>
-      <p class="ai-hint">Yukarıdaki kutuya bir hedef ya da fikir yaz, sonra bir eylem seç:</p>
-      <div class="ai-actions">
-        <button class="chip-btn" data-ai="breakdown">🧩 Alt görevlere böl</button>
-        <button class="chip-btn" data-ai="improve">✍️ Metni iyileştir</button>
-        <button class="chip-btn" data-ai="suggest">💡 Öneriler getir</button>
-        <button class="chip-btn" data-ai="prioritize">🎯 Önceliklendir</button>
-      </div>
-      <div class="ai-status" id="ai-status" hidden></div>
-      <div class="ai-results" id="ai-results"></div>
-    </section>
 
     <!-- Filtreler -->
     <div class="filters">
@@ -98,30 +77,6 @@
       <button class="link-btn" id="clear-completed">Tamamlananları temizle</button>
     </footer>
   </main>
-
-  <!-- AI anahtar ayar modalı -->
-  <div class="modal-overlay" id="settings-modal" hidden>
-    <div class="modal">
-      <h2><span class="spark">✨</span> AI Ayarları</h2>
-      <p class="modal-desc">
-        AI özellikleri için bir <strong>Anthropic (Claude) API anahtarı</strong> gerekir.
-        Anahtarın yalnızca <strong>bu tarayıcıda</strong> saklanır, hiçbir sunucuya veya depoya gönderilmez.
-        Anahtar al: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
-      </p>
-      <label class="field">
-        <span>API anahtarı</span>
-        <input type="password" id="ai-key-input" placeholder="sk-ant-...">
-      </label>
-      <p class="modal-error" id="key-error"></p>
-      <div class="modal-actions">
-        <button class="link-btn" id="key-clear">Anahtarı sil</button>
-        <div class="modal-actions-right">
-          <button class="btn btn-ghost" id="key-cancel">Vazgeç</button>
-          <button class="btn btn-primary" id="key-save">Kaydet</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div class="toast" id="toast" hidden></div>
 
