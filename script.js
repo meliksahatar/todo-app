@@ -2,16 +2,57 @@
 const SUPABASE_URL = 'https://ijcgvreinogjkdgvjnhd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqY2d2cmVpbm9namtkZ3ZqbmhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1OTA3OTIsImV4cCI6MjA5NjE2Njc5Mn0.TObXIDgxEuSvkEdLkjMXwJ7YPcETKeWUEwOVh-9T4sc';
 const REST_URL = `${SUPABASE_URL}/rest/v1/todos`;
+const AUTH_URL = `${SUPABASE_URL}/auth/v1`;
 
-const headers = {
-  'apikey': SUPABASE_KEY,
-  'Authorization': `Bearer ${SUPABASE_KEY}`,
-  'Content-Type': 'application/json',
-};
+// Oturum (access token + kullanıcı) tarayıcıda saklanır
+let session = JSON.parse(localStorage.getItem('session')) || null;
 
-// REST API yardımcı fonksiyonları
+function authHeaders() {
+  return {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${session ? session.access_token : SUPABASE_KEY}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+// --- Auth API (GoTrue REST) ---
+async function signUp(email, password) {
+  const res = await fetch(`${AUTH_URL}/signup`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.msg || data.error_description || data.error || 'Kayıt başarısız');
+  if (!data.access_token) throw new Error('Kayıt tamamlandı fakat oturum açılamadı.');
+  return data;
+}
+
+async function signIn(email, password) {
+  const res = await fetch(`${AUTH_URL}/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.msg || data.error_description || data.error || 'Giriş başarısız');
+  return data;
+}
+
+function saveSession(data) {
+  session = { access_token: data.access_token, refresh_token: data.refresh_token, email: data.user.email };
+  localStorage.setItem('session', JSON.stringify(session));
+}
+
+function clearSession() {
+  session = null;
+  localStorage.removeItem('session');
+}
+
+// --- Todo REST API ---
 async function apiSelect() {
-  const res = await fetch(`${REST_URL}?select=*&order=created_at.asc`, { headers });
+  const res = await fetch(`${REST_URL}?select=*&order=created_at.asc`, { headers: authHeaders() });
+  if (res.status === 401) { handleExpired(); throw new Error('Oturum süresi doldu, tekrar giriş yap'); }
   if (!res.ok) throw new Error('Görevler yüklenemedi');
   return res.json();
 }
@@ -19,7 +60,7 @@ async function apiSelect() {
 async function apiInsert(text) {
   const res = await fetch(REST_URL, {
     method: 'POST',
-    headers: { ...headers, 'Prefer': 'return=representation' },
+    headers: { ...authHeaders(), 'Prefer': 'return=representation' },
     body: JSON.stringify({ text }),
   });
   if (!res.ok) throw new Error('Görev eklenemedi');
@@ -29,7 +70,7 @@ async function apiInsert(text) {
 async function apiUpdate(id, fields) {
   const res = await fetch(`${REST_URL}?id=eq.${id}`, {
     method: 'PATCH',
-    headers: { ...headers, 'Prefer': 'return=representation' },
+    headers: { ...authHeaders(), 'Prefer': 'return=representation' },
     body: JSON.stringify(fields),
   });
   if (!res.ok) throw new Error('Görev güncellenemedi');
@@ -37,11 +78,24 @@ async function apiUpdate(id, fields) {
 }
 
 async function apiDelete(filter) {
-  const res = await fetch(`${REST_URL}?${filter}`, { method: 'DELETE', headers });
+  const res = await fetch(`${REST_URL}?${filter}`, { method: 'DELETE', headers: authHeaders() });
   if (!res.ok) throw new Error('Görev silinemedi');
 }
 
 // --- DOM elemanları ---
+const authScreen = document.getElementById('auth-screen');
+const appScreen = document.getElementById('app-screen');
+const authForm = document.getElementById('auth-form');
+const authEmail = document.getElementById('auth-email');
+const authPassword = document.getElementById('auth-password');
+const authSubmit = document.getElementById('auth-submit');
+const authError = document.getElementById('auth-error');
+const authSubtitle = document.getElementById('auth-subtitle');
+const authToggle = document.getElementById('auth-toggle');
+const authToggleLabel = document.getElementById('auth-toggle-label');
+const userEmail = document.getElementById('user-email');
+const logoutBtn = document.getElementById('logout-btn');
+
 const form = document.getElementById('todo-form');
 const input = document.getElementById('todo-input');
 const list = document.getElementById('todo-list');
@@ -51,10 +105,76 @@ const filterBtns = document.querySelectorAll('.filter-btn');
 
 let todos = [];
 let filter = 'all';
+let mode = 'login'; // 'login' | 'signup'
 
+// --- Auth ekranı kontrolü ---
+function setMode(m) {
+  mode = m;
+  authError.textContent = '';
+  if (m === 'login') {
+    authSubtitle.textContent = 'Devam etmek için giriş yap';
+    authSubmit.textContent = 'Giriş Yap';
+    authToggleLabel.textContent = 'Hesabın yok mu?';
+    authToggle.textContent = 'Kaydol';
+    authPassword.setAttribute('autocomplete', 'current-password');
+  } else {
+    authSubtitle.textContent = 'Yeni hesap oluştur';
+    authSubmit.textContent = 'Kaydol';
+    authToggleLabel.textContent = 'Zaten hesabın var mı?';
+    authToggle.textContent = 'Giriş Yap';
+    authPassword.setAttribute('autocomplete', 'new-password');
+  }
+}
+
+authToggle.addEventListener('click', () => setMode(mode === 'login' ? 'signup' : 'login'));
+
+authForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  authError.textContent = '';
+  authSubmit.disabled = true;
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+  try {
+    const data = mode === 'signup'
+      ? await signUp(email, password)
+      : await signIn(email, password);
+    saveSession(data);
+    authForm.reset();
+    showApp();
+  } catch (err) {
+    authError.textContent = err.message;
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+
+logoutBtn.addEventListener('click', () => {
+  clearSession();
+  todos = [];
+  showAuth();
+});
+
+function handleExpired() {
+  clearSession();
+  showAuth();
+}
+
+function showAuth() {
+  appScreen.hidden = true;
+  authScreen.hidden = false;
+  setMode('login');
+}
+
+async function showApp() {
+  authScreen.hidden = true;
+  appScreen.hidden = false;
+  userEmail.textContent = session.email;
+  await load();
+}
+
+// --- Todo render & işlemler ---
 function render() {
   list.innerHTML = '';
-
   const filtered = todos.filter(t => {
     if (filter === 'active') return !t.completed;
     if (filter === 'completed') return t.completed;
@@ -163,4 +283,9 @@ filterBtns.forEach(btn => {
   });
 });
 
-load();
+// --- Başlangıç: oturum varsa uygulamayı göster ---
+if (session && session.access_token) {
+  showApp();
+} else {
+  showAuth();
+}
